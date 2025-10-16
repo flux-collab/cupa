@@ -167,6 +167,38 @@ function wireSvgClicks(svgEl){
     });
     return;
   }
+/* Robust click handler: find the topmost zone element under the cursor */
+function attachRobustSvgClickHandler(svgEl){
+  if(!svgEl) return;
+  svgEl.addEventListener('click', function(e){
+    // elementsFromPoint returns the stack under the cursor
+    const px = e.clientX, py = e.clientY;
+    const stack = (document.elementsFromPoint) ? document.elementsFromPoint(px, py) : [document.elementFromPoint(px, py)];
+    // find first element whose id matches a zone id from the sheet (commonly 'zone-...')
+    const zoneEl = stack.find(el => el && el.id && (/^zone[-_]?/i.test(el.id) || (zonesMeta && zonesMeta[el.id])));
+    if(zoneEl){
+      const svgId = zoneEl.id;
+      // call existing handlers (adapt to your code names)
+      if(typeof handleZoneClickRobust === 'function'){
+        handleZoneClickRobust(svgId);
+      } else if(typeof handleZoneClick === 'function'){
+        handleZoneClick(svgId);
+      } else {
+        // fallback: set currentZone and refresh
+        currentZone = { svg_id: svgId, zone_id: svgId.replace(/^zone[-_]/i, ''), zone_name: svgId.replace(/[_-]/g,' ') };
+        document.getElementById('zoneTitle').textContent = currentZone.zone_name;
+        refreshJobsFromAPI().then(()=>renderJobList());
+      }
+    } else {
+      // debug info — shows first few elements under cursor
+      console.log('Clicked stack (no zone found):', stack.slice(0,8).map(x => ({id: x && x.id, tag: x && x.tagName})));
+    }
+  }, false);
+}
+
+/* call it after SVG is inlined */
+const svgRoot = document.querySelector('#svgContainer svg');
+if(svgRoot) attachRobustSvgClickHandler(svgRoot);
 
   // Attach only to elements with id present in zonesMeta
   keys.forEach(svgId=>{
