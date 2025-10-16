@@ -48,7 +48,7 @@
        inkscape:label="site" /><path
        sodipodi:type="star"
        style="fill:none;stroke:#000000;stroke-width:1.88976;stroke-linejoin:round;stroke-dasharray:none"
-       id="path1"
+       id="zone-bar"
        inkscape:flatsided="true"
        sodipodi:sides="3"
        sodipodi:cx="473.85645"
@@ -66,7 +66,7 @@
        inkscape:label="zone-bar" /><path
        sodipodi:type="star"
        style="display:inline;fill:none;stroke:#000000;stroke-width:1.88976;stroke-linejoin:round;stroke-dasharray:none"
-       id="path1-1"
+       id="zone-god"
        inkscape:flatsided="true"
        sodipodi:sides="3"
        sodipodi:cx="473.85645"
@@ -84,7 +84,7 @@
        inkscape:label="zone-god" /><path
        sodipodi:type="star"
        style="fill:none;stroke:#000000;stroke-width:1.88976;stroke-linejoin:round;stroke-dasharray:none"
-       id="path1-3"
+       id="zone-gthq"
        inkscape:flatsided="true"
        sodipodi:sides="3"
        sodipodi:cx="473.85645"
@@ -102,7 +102,7 @@
        inkscape:label="zone-gthq" /><path
        sodipodi:type="star"
        style="fill:none;stroke:#000000;stroke-width:1.88976;stroke-linejoin:round;stroke-dasharray:none"
-       id="path1-9"
+       id="zone-event"
        inkscape:flatsided="true"
        sodipodi:sides="3"
        sodipodi:cx="473.85645"
@@ -114,13 +114,13 @@
        inkscape:rounded="0"
        inkscape:randomized="0"
        d="M 556.20343,257.15379 209.98124,-57.262313 655.38467,-199.89148 Z"
-       transform="matrix(0.26458333,0,0,0.26458333,-115.42439,116.2956)"
+       transform="matrix(0.26458333,0,0,0.26458333,-115.42439,116.29561)"
        inkscape:transform-center-x="10.893824"
        inkscape:transform-center-y="7.5753255"
        inkscape:label="zone-event" /><path
        sodipodi:type="star"
        style="fill:none;stroke:#000000;stroke-width:1.88976;stroke-linejoin:round;stroke-dasharray:none"
-       id="path1-6"
+       id="zone-workshop"
        inkscape:flatsided="true"
        sodipodi:sides="3"
        sodipodi:cx="473.85645"
@@ -138,7 +138,7 @@
        inkscape:label="zone-workshop" /><path
        sodipodi:type="star"
        style="display:inline;fill:none;stroke:#000000;stroke-width:1.88976;stroke-linejoin:round;stroke-dasharray:none"
-       id="path1-30"
+       id="zone-bastion"
        inkscape:flatsided="true"
        sodipodi:sides="3"
        sodipodi:cx="473.85645"
