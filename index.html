@@ -1,1 +1,338 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LARP Site — Image Map Jobs</title>
+  <style>
+    :root { --sidebar-width: 380px; --gap: 12px; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin:0; }
+    #container { display:flex; gap:var(--gap); height:100vh; padding:var(--gap); box-sizing:border-box; }
+    #mapwrap { flex:1; min-width:200px; border:1px solid #ddd; display:flex; align-items:center; justify-content:center; background:#fafafa; overflow:auto; }
+    #sidebar { width:var(--sidebar-width); max-width:40vw; min-width:260px; border-left:1px solid #eee; padding:12px; box-sizing:border-box; overflow:auto; }
+    #svgContainer { width:100%; max-width:1200px; }
+    .zone-highlight { fill: rgba(20,120,200,0.15); stroke: rgba(20,120,200,0.6); stroke-width:2; cursor:pointer; transition: fill .12s; }
+    .zone-highlight:hover { fill: rgba(20,120,200,0.28); }
+    .zone-selected { fill: rgba(0,160,60,0.18) !important; stroke: rgba(0,160,60,0.6) !important; }
+    h2 { margin:6px 0 12px 0; font-size:1.1rem; }
+    .controls { margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    select, input[type="text"] { padding:6px 8px; border:1px solid #ccc; border-radius:6px; }
+    .job { padding:8px 10px; border:1px solid #eee; border-radius:8px; margin-bottom:8px; background:#fff; }
+    .job h4 { margin:0 0 6px 0; font-size:0.98rem; }
+    .job p { margin:0 0 8px 0; color:#333; font-size:0.92rem; }
+    .job .meta { font-size:0.82rem; color:#666; margin-bottom:8px; }
+    .btn { display:inline-block; padding:6px 10px; border-radius:6px; text-decoration:none; color:#fff; background:#007bff; cursor:pointer; margin-right:6px; font-size:0.9rem; }
+    .btn.ghost { background:transparent; color:#007bff; border:1px solid #d0e4ff; }
+    .status-badge { font-weight:600; padding:4px 8px; border-radius:6px; font-size:0.8rem; }
+    .status-open { background:#fff3cd; color:#856404; }
+    .status-completed { background:#d4edda; color:#155724; }
+    .small { font-size:0.85rem; color:#555; }
+    #jobsEmpty { color:#777; margin-top:12px; }
+    footer { font-size:0.8rem; color:#666; padding:8px 12px; border-top:1px solid #eee; }
+    @media (max-width:900px){
+      #container { flex-direction:column; height:auto; }
+      #sidebar { width:100%; border-left:none; border-top:1px solid #eee; max-height:45vh; }
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="mapwrap">
+      <div id="svgContainer" aria-hidden="false" role="img" title="Site map will appear here">
+        <!-- SVG will be loaded here from site.svg -->
+        <p style="color:#999; padding:12px;">Loading site image…</p>
+      </div>
+    </div>
+
+    <aside id="sidebar" aria-label="Job list">
+      <h2 id="zoneTitle">Select a zone</h2>
+      <div class="controls">
+        <label class="small">Team:
+          <select id="teamFilter">
+            <option value="">All teams</option>
+            <option value="build">build</option>
+            <option value="electrical">electrical</option>
+            <option value="sanitation">sanitation</option>
+            <option value="faction">faction</option>
+          </select>
+        </label>
+        <label class="small">Priority:
+          <select id="priorityFilter">
+            <option value="">Any</option>
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+          </select>
+        </label>
+        <input id="searchText" type="text" placeholder="Search jobs…" style="flex:1" />
+      </div>
+
+      <div id="jobList">
+        <p id="jobsEmpty">No area selected.</p>
+      </div>
+
+      <footer>
+        Data source: your Google Sheet — ensure Apps Script web-app is deployed and its URL is placed into the script config.
+      </footer>
+    </aside>
+  </div>
+
+<script>
+/* ======= CONFIG - replace these before using =======
+   1) API_BASE: paste your Apps Script web-app URL (the doGet/doPost endpoint).
+   2) WRITE_TOKEN: paste the secret token you put in the Apps Script code.
+   3) Ensure site.svg is hosted next to this index.html (same folder).
+================================================== */
+const API_BASE = "PASTE_YOUR_APPS_SCRIPT_WEBAPP_URL_HERE"; // e.g. https://script.google.com/macros/s/ABC123/exec
+const WRITE_TOKEN = "PASTE_WRITE_TOKEN_HERE";
+/* ================================================= */
+
+if(API_BASE.includes("PASTE_YOUR")) {
+  console.warn("Please update API_BASE and WRITE_TOKEN in the HTML before use.");
+}
+
+/* Utility: safe text to prevent XSS */
+function esc(s){ if(s===null||s===undefined) return ""; return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;" }[c])); }
+
+/* Global state */
+let zonesMeta = {};     // mapping svg_id => { zone_id, zone_name, svg_id }
+let currentZone = null; // {svg_id, zone_id, zone_name}
+let allJobsCache = [];  // cache of jobs returned by the API
+
+/* Load the SVG file and inject inline so we can attach event listeners */
+async function loadInlineSVG(url = 'site.svg'){
+  try {
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('Failed to load SVG: '+r.status);
+    const svgText = await r.text();
+    const container = document.getElementById('svgContainer');
+    container.innerHTML = svgText;
+
+    // Add a default class to clickable shapes if they have no style
+    const svgEl = container.querySelector('svg');
+    if(!svgEl) throw new Error('SVG element not found in file.');
+    // attach pointer cursor and base styles for elements with ids
+    svgEl.querySelectorAll('[id]').forEach(el=>{
+      // allow groups (<g>), paths, polygons, rect, circle, etc.
+      // We only style elements that seem like visible shapes
+      const tag = el.tagName.toLowerCase();
+      if(['path','polygon','rect','circle','ellipse','g','polyline'].includes(tag)){
+        el.classList.add('zone-highlight');
+        // ensure pointer events enabled
+        el.style.pointerEvents = 'auto';
+      }
+    });
+    return svgEl;
+
+  } catch(err){
+    console.error(err);
+    document.getElementById('svgContainer').innerHTML = '<div style="color:red;">Unable to load SVG: '+esc(err.message)+'</div>';
+  }
+}
+
+/* Fetch zones + all jobs from the Apps Script GET endpoint */
+async function fetchZonesAndJobs(){
+  try {
+    const r = await fetch(API_BASE);
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'API returned ok:false');
+    // build zones map keyed by svg_id
+    zonesMeta = {};
+    (j.zones || []).forEach(z=>{
+      if(z.svg_id) zonesMeta[z.svg_id] = { zone_id: z.zone_id, zone_name: z.zone_name, svg_id: z.svg_id };
+    });
+    allJobsCache = j.jobs || [];
+    return { zones: j.zones || [], jobs: j.jobs || [] };
+  } catch(err){
+    console.error('Failed to fetch zones/jobs:', err);
+    // fallback: keep empty
+    zonesMeta = {};
+    allJobsCache = [];
+    return { zones: [], jobs: [] };
+  }
+}
+
+/* Wire up click listeners to SVG shapes that match any svg_id from the Zones sheet */
+function wireSvgClicks(svgEl){
+  if(!svgEl) return;
+  // find all elements with id that matches keys in zonesMeta
+  const keys = Object.keys(zonesMeta);
+  if(keys.length === 0){
+    // If no zonesMeta (maybe API not deployed) still attach clicks to elements that look like "zone-*" ids
+    svgEl.querySelectorAll('[id]').forEach(el=>{
+      if(el.id && el.id.trim()){
+        el.addEventListener('click', ()=> handleZoneClick(el.id));
+        el.style.cursor = 'pointer';
+      }
+    });
+    return;
+  }
+
+  // Attach only to elements with id present in zonesMeta
+  keys.forEach(svgId=>{
+    const el = svgEl.querySelector('#' + CSS.escape(svgId));
+    if(el){
+      el.addEventListener('click', ()=> handleZoneClick(svgId, true));
+      el.style.cursor = 'pointer';
+    } else {
+      // fallback: try common prefix differences, e.g., zone-north vs north
+      const alt = svgId.replace(/^zone[-_]/,'');
+      const altEl = svgEl.querySelector('#' + CSS.escape(alt));
+      if(altEl){
+        altEl.addEventListener('click', ()=> handleZoneClick(alt, true));
+        altEl.style.cursor = 'pointer';
+      }
+    }
+  });
+}
+
+/* When a zone is clicked */
+function handleZoneClick(svgId, usedMapping=false){
+  // clear previously selected
+  document.querySelectorAll('.zone-selected').forEach(el=>el.classList.remove('zone-selected'));
+  // find element by id and mark selected
+  const svgContainer = document.getElementById('svgContainer');
+  const el = svgContainer.querySelector('#' + CSS.escape(svgId));
+  if(el) el.classList.add('zone-selected');
+
+  // derive zone_id and zone_name
+  let zoneMeta = zonesMeta[svgId];
+  if(!zoneMeta){
+    // try common fallback: if svgId starts with 'zone-' strip it
+    let fallback = svgId;
+    if(svgId.startsWith('zone-')) fallback = svgId.replace('zone-','');
+    zoneMeta = { svg_id: svgId, zone_id: fallback, zone_name: fallback.replace(/[_-]/g,' ') };
+  }
+  currentZone = zoneMeta;
+  document.getElementById('zoneTitle').textContent = zoneMeta.zone_name || zoneMeta.zone_id || svgId;
+  renderJobList();
+}
+
+/* Apply filters from UI and render job cards for current zone */
+function renderJobList(){
+  const container = document.getElementById('jobList');
+  container.innerHTML = '';
+  if(!currentZone){
+    container.innerHTML = '<p id="jobsEmpty">No area selected.</p>';
+    return;
+  }
+  const team = document.getElementById('teamFilter').value;
+  const priority = document.getElementById('priorityFilter').value;
+  const search = (document.getElementById('searchText').value || '').trim().toLowerCase();
+
+  // Filter jobs: by zone_id (exact), team (if set), priority (if set), and text search
+  const zoneId = currentZone.zone_id;
+  let jobs = allJobsCache.filter(j => String(j.zone_id) === String(zoneId));
+  if(team) jobs = jobs.filter(j => String(j.team).toLowerCase() === team.toLowerCase());
+  if(priority) jobs = jobs.filter(j => String(j.priority).toLowerCase() === priority.toLowerCase());
+  if(search){
+    jobs = jobs.filter(j => (
+      (j.title||'').toLowerCase().includes(search) ||
+      (j.description||'').toLowerCase().includes(search) ||
+      (j.notes||'').toLowerCase().includes(search)
+    ));
+  }
+
+  if(!jobs.length){
+    container.innerHTML = '<p id="jobsEmpty">No jobs found for this area / filters.</p>';
+    return;
+  }
+
+  jobs.forEach(job=>{
+    const div = document.createElement('div');
+    div.className = 'job';
+    const statusClass = (String(job.status).toLowerCase() === 'completed') ? 'status-completed' : 'status-open';
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h4>${esc(job.title||job.job_id||'Untitled job')}</h4>
+        <div class="status-badge ${statusClass}">${esc(job.status||'open')}</div>
+      </div>
+      <div class="meta small">Team: ${esc(job.team||'')} • Priority: ${esc(job.priority||'')}</div>
+      <p>${esc(job.description||'')}</p>
+      <div>
+        <a class="btn" data-job="${esc(job.job_id)}">Details</a>
+        <a class="btn ghost" data-complete="${esc(job.job_id)}">Mark complete</a>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  // Wire buttons
+  container.querySelectorAll('[data-complete]').forEach(el=>{
+    el.addEventListener('click', async ev=>{
+      ev.preventDefault();
+      const jobId = el.getAttribute('data-complete');
+      if(!confirm('Mark job ' + jobId + ' as completed?')) return;
+      await markComplete(jobId);
+      // refresh cache from API to show updated status
+      await refreshJobsFromAPI();
+      renderJobList();
+    });
+  });
+  container.querySelectorAll('[data-job]').forEach(el=>{
+    el.addEventListener('click', ev=>{
+      ev.preventDefault();
+      const jobId = el.getAttribute('data-job');
+      const job = allJobsCache.find(j=>String(j.job_id) === String(jobId));
+      if(!job){ alert('Job not found in cache'); return; }
+      // Simple details modal via alert for prototype (you can replace with a nicer drawer/modal)
+      alert(`Job: ${job.title || job.job_id}\n\nTeam: ${job.team}\nPriority: ${job.priority}\nStatus: ${job.status}\n\nDescription:\n${job.description || ''}\n\nNotes:\n${job.notes || ''}`);
+    });
+  });
+}
+
+/* POST update to mark job complete (uses Apps Script doPost endpoint) */
+async function markComplete(jobId){
+  try {
+    const payload = { token: WRITE_TOKEN, job_id: jobId, status: 'completed' };
+    const r = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'update failed');
+    return true;
+  } catch(err){
+    alert('Failed to update job: ' + err.message);
+    console.error(err);
+    return false;
+  }
+}
+
+/* Refresh allJobsCache from API (simple) */
+async function refreshJobsFromAPI(){
+  try {
+    const r = await fetch(API_BASE);
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'API error');
+    allJobsCache = j.jobs || [];
+  } catch(err){
+    console.warn('Could not refresh jobs:', err);
+  }
+}
+
+/* Setup: load SVG, fetch zones & jobs, wire clicks & UI handlers */
+async function start(){
+  const svgEl = await loadInlineSVG('site.svg');
+  await fetchZonesAndJobs();
+  // wire clicks after zonesMeta known and svg present
+  wireSvgClicks(svgEl);
+
+  // UI filter handlers
+  document.getElementById('teamFilter').addEventListener('change', renderJobList);
+  document.getElementById('priorityFilter').addEventListener('change', renderJobList);
+  document.getElementById('searchText').addEventListener('input', () => { setTimeout(renderJobList, 150); });
+
+  // if there are zone elements that match zonesMeta keys, optionally pre-select the first one
+  const keys = Object.keys(zonesMeta);
+  if(keys.length && svgEl.querySelector('#' + CSS.escape(keys[0]))){
+    // visually indicate available areas (already styled) — don't auto-select to avoid surprise
+  }
+}
+
+start();
+</script>
+</body>
+</html>
 
