@@ -107,6 +107,43 @@ async function loadInlineSVG(url = 'site.svg'){
     const svgText = await r.text();
     const container = document.getElementById('svgContainer');
     container.innerHTML = svgText;
+    /* === Temporary runtime fix: ensure background doesn't block and zones accept clicks === */
+(function enableSvgPointerEventsFix(){
+  const svgRoot = document.querySelector('#svgContainer svg');
+  if(!svgRoot) return;
+  // 1) make sure any image element doesn't capture clicks
+  const bgImage = svgRoot.querySelector('image') || svgRoot.querySelector('image#image1');
+  if(bgImage){
+    bgImage.style.pointerEvents = 'none';
+    // also set attribute in case CSS computed is used
+    bgImage.setAttribute('pointer-events','none');
+    console.log('bgImage pointer-events set to none');
+  }
+
+  // 2) ensure zone elements have pointer-events enabled
+  // adjust the selector if your zone ids use a different pattern
+  const zoneEls = Array.from(svgRoot.querySelectorAll('[id]')).filter(el => /^zone[-_]?/i.test(el.id));
+  if(zoneEls.length === 0){
+    console.warn('No zone-* ids found in SVG. Check svg id naming or use a different selector.');
+  } else {
+    zoneEls.forEach(el=>{
+      el.style.pointerEvents = 'auto';
+      el.setAttribute('pointer-events','auto');
+    });
+    console.log('Enabled pointer-events on', zoneEls.length, 'zone elements');
+  }
+
+  // 3) also attempt to make any top-level group that is purely decorative ignore events
+  const topGroups = svgRoot.querySelectorAll('g');
+  topGroups.forEach(g=>{
+    // if the group id looks like "layer" but not a zone, set pointer-events:none so children can get events
+    if(g.id && /^layer/i.test(g.id) && !/^zone/i.test(g.id)){
+      g.style.pointerEvents = 'none';
+      g.setAttribute('pointer-events','none');
+    }
+  });
+})();
+
 
     // Add a default class to clickable shapes if they have no style
     const svgEl = container.querySelector('svg');
