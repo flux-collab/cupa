@@ -304,18 +304,18 @@ function renderJobList(){
     `;
     container.appendChild(div);
   });
+async function markComplete(jobId){
+  try {
+    const res = await updateJobViaJsonp(jobId, 'completed');
+    if(!res || !res.ok) { alert('Update failed: ' + (res && res.error)); return false; }
+    await fetchZonesAndJobs();
+    return true;
+  } catch(err){
+    alert('Update failed: ' + err.message);
+    return false;
+  }
+}
 
-  // Wire buttons
-  container.querySelectorAll('[data-complete]').forEach(el=>{
-    el.addEventListener('click', async ev=>{
-      ev.preventDefault();
-      const jobId = el.getAttribute('data-complete');
-      if(!confirm('Mark job ' + jobId + ' as completed?')) return;
-      await markComplete(jobId);
-      // refresh cache from API to show updated status
-      await refreshJobsFromAPI();
-      renderJobList();
-    });
   });
   container.querySelectorAll('[data-job]').forEach(el=>{
     el.addEventListener('click', ev=>{
