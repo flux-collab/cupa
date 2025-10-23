@@ -3,367 +3,76 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>LARP Site — Image Map Jobs</title>
+  <title>LARP Staff Map</title>
   <style>
-    :root { --sidebar-width: 380px; --gap: 12px; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin:0; }
-    #container { display:flex; gap:var(--gap); height:100vh; padding:var(--gap); box-sizing:border-box; }
-    #mapwrap { flex:1; min-width:200px; border:1px solid #ddd; display:flex; align-items:center; justify-content:center; background:#fafafa; overflow:auto; }
-    #sidebar { width:var(--sidebar-width); max-width:40vw; min-width:260px; border-left:1px solid #eee; padding:12px; box-sizing:border-box; overflow:auto; }
-    #svgContainer { width:100%; max-width:1200px; }
-    .zone-highlight { fill: rgba(20,120,200,0.15); stroke: rgba(20,120,200,0.6); stroke-width:2; cursor:pointer; transition: fill .12s; }
-    .zone-highlight:hover { fill: rgba(20,120,200,0.28); }
-    .zone-selected { fill: rgba(0,160,60,0.18) !important; stroke: rgba(0,160,60,0.6) !important; }
-    h2 { margin:6px 0 12px 0; font-size:1.1rem; }
-    .controls { margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    select, input[type="text"] { padding:6px 8px; border:1px solid #ccc; border-radius:6px; }
-    .job { padding:8px 10px; border:1px solid #eee; border-radius:8px; margin-bottom:8px; background:#fff; }
-    .job h4 { margin:0 0 6px 0; font-size:0.98rem; }
-    .job p { margin:0 0 8px 0; color:#333; font-size:0.92rem; }
-    .job .meta { font-size:0.82rem; color:#666; margin-bottom:8px; }
-    .btn { display:inline-block; padding:6px 10px; border-radius:6px; text-decoration:none; color:#fff; background:#007bff; cursor:pointer; margin-right:6px; font-size:0.9rem; }
+    body { font-family: Arial, sans-serif; margin:0; }
+    #container { display:flex; height:100vh; }
+    #mapwrap { flex:1; padding:12px; box-sizing:border-box; overflow:auto; background:#f7f7f7; display:flex; align-items:center; justify-content:center; }
+    #svgContainer { width:100%; max-width:1200px; border:1px solid #ddd; background:#fff; }
+    aside { width:360px; border-left:1px solid #eee; padding:12px; box-sizing:border-box; overflow:auto; }
+    .zone { padding:8px; border-bottom:1px solid #eee; }
+    .btn { display:inline-block; padding:6px 10px; border-radius:6px; color:#fff; background:#007bff; text-decoration:none; cursor:pointer; }
     .btn.ghost { background:transparent; color:#007bff; border:1px solid #d0e4ff; }
-    .status-badge { font-weight:600; padding:4px 8px; border-radius:6px; font-size:0.8rem; }
-    .status-open { background:#fff3cd; color:#856404; }
-    .status-completed { background:#d4edda; color:#155724; }
-    .small { font-size:0.85rem; color:#555; }
-    #jobsEmpty { color:#777; margin-top:12px; }
-    footer { font-size:0.8rem; color:#666; padding:8px 12px; border-top:1px solid #eee; }
-    @media (max-width:900px){
-      #container { flex-direction:column; height:auto; }
-      #sidebar { width:100%; border-left:none; border-top:1px solid #eee; max-height:45vh; }
-    }
+    .status-completed { color:green; font-weight:bold; }
   </style>
 </head>
 <body>
   <div id="container">
     <div id="mapwrap">
-      <div id="svgContainer" aria-hidden="false" role="img" title="Site map will appear here">
-        <!-- SVG will be loaded here from site.svg -->
-        <p style="color:#999; padding:12px;">Loading site image…</p>
+      <div id="svgContainer">
+        <p style="padding:12px; color:#666;">Loading site image…</p>
       </div>
     </div>
 
-    <aside id="sidebar" aria-label="Job list">
-      <h2 id="zoneTitle">Select a zone</h2>
-      <div class="controls">
-        <label class="small">Team:
+    <aside>
+      <h3 id="zoneTitle">Select an area</h3>
+      <div>
+        <label>Team:
           <select id="teamFilter">
-            <option value="">All teams</option>
+            <option value="">All</option>
             <option value="build">build</option>
             <option value="electrical">electrical</option>
             <option value="sanitation">sanitation</option>
             <option value="faction">faction</option>
           </select>
         </label>
-        <label class="small">Priority:
-          <select id="priorityFilter">
-            <option value="">Any</option>
-            <option value="high">high</option>
-            <option value="medium">medium</option>
-            <option value="low">low</option>
-          </select>
-        </label>
-        <input id="searchText" type="text" placeholder="Search jobs…" style="flex:1" />
       </div>
 
-      <div id="jobList">
-        <p id="jobsEmpty">No area selected.</p>
+      <div id="jobList" style="margin-top:12px;">
+        <p>No area selected.</p>
       </div>
-
-      <footer>
-        Data source: your Google Sheet — ensure Apps Script web-app is deployed and its URL is placed into the script config.
-      </footer>
     </aside>
   </div>
 
 <script>
-/* ======= CONFIG - replace these before using =======
-   1) API_BASE: paste your Apps Script web-app URL (the doGet/doPost endpoint).
-   2) WRITE_TOKEN: paste the secret token you put in the Apps Script code.
-   3) Ensure site.svg is hosted next to this index.html (same folder).
-================================================== */
-const API_BASE = "https://script.google.com/macros/s/AKfycbwKlnE_QpBnmgw3kqh1cb74_d7rhMb0mjbn0Tir66ORjITH5s7uxJy9Y1dOGSUPNHtVPw/exec"; // e.g. https://script.google.com/macros/s/ABC123/exec
+/* ======= CONFIG - update these ======= */
+const API_BASE = "https://script.google.com/macros/s/AKfycbwXpjpotXDNoGLggWB4FmBe9EW0Z05W1IvoQLnsF7xrRAlvkzP2IJ9dKboBeE1fLYs8Rw/exec";
 const WRITE_TOKEN = "rtyaddsv42r-skdjfh0";
-/* ================================================= */
+/* ===================================== */
 
-if(API_BASE.includes("PASTE_YOUR")) {
-  console.warn("Please update API_BASE and WRITE_TOKEN in the HTML before use.");
-}
+let zonesMeta = {};
+let allJobsCache = [];
+let currentZone = null;
 
-/* Utility: safe text to prevent XSS */
-function esc(s){ if(s===null||s===undefined) return ""; return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;" }[c])); }
-
-/* Global state */
-let zonesMeta = {};     // mapping svg_id => { zone_id, zone_name, svg_id }
-let currentZone = null; // {svg_id, zone_id, zone_name}
-let allJobsCache = [];  // cache of jobs returned by the API
-
-/* Load the SVG file and inject inline so we can attach event listeners */
-async function loadInlineSVG(url = 'site.svg'){
-  try {
-    const r = await fetch(url);
-    if(!r.ok) throw new Error('Failed to load SVG: '+r.status);
-    const svgText = await r.text();
-    const container = document.getElementById('svgContainer');
-    container.innerHTML = svgText;
-    /* === Temporary runtime fix: ensure background doesn't block and zones accept clicks === */
-(function enableSvgPointerEventsFix(){
-  const svgRoot = document.querySelector('#svgContainer svg');
-  if(!svgRoot) return;
-  // 1) make sure any image element doesn't capture clicks
-  const bgImage = svgRoot.querySelector('image') || svgRoot.querySelector('image#image1');
-  if(bgImage){
-    bgImage.style.pointerEvents = 'none';
-    // also set attribute in case CSS computed is used
-    bgImage.setAttribute('pointer-events','none');
-    console.log('bgImage pointer-events set to none');
-  }
-
-  // 2) ensure zone elements have pointer-events enabled
-  // adjust the selector if your zone ids use a different pattern
-  const zoneEls = Array.from(svgRoot.querySelectorAll('[id]')).filter(el => /^zone[-_]?/i.test(el.id));
-  if(zoneEls.length === 0){
-    console.warn('No zone-* ids found in SVG. Check svg id naming or use a different selector.');
-  } else {
-    zoneEls.forEach(el=>{
-      el.style.pointerEvents = 'auto';
-      el.setAttribute('pointer-events','auto');
-    });
-    console.log('Enabled pointer-events on', zoneEls.length, 'zone elements');
-  }
-
-  // 3) also attempt to make any top-level group that is purely decorative ignore events
-  const topGroups = svgRoot.querySelectorAll('g');
-  topGroups.forEach(g=>{
-    // if the group id looks like "layer" but not a zone, set pointer-events:none so children can get events
-    if(g.id && /^layer/i.test(g.id) && !/^zone/i.test(g.id)){
-      g.style.pointerEvents = 'none';
-      g.setAttribute('pointer-events','none');
-    }
-  });
-})();
-
-
-    // Add a default class to clickable shapes if they have no style
-    const svgEl = container.querySelector('svg');
-    if(!svgEl) throw new Error('SVG element not found in file.');
-    // attach pointer cursor and base styles for elements with ids
-    svgEl.querySelectorAll('[id]').forEach(el=>{
-      // allow groups (<g>), paths, polygons, rect, circle, etc.
-      // We only style elements that seem like visible shapes
-      const tag = el.tagName.toLowerCase();
-      if(['path','polygon','rect','circle','ellipse','g','polyline'].includes(tag)){
-        el.classList.add('zone-highlight');
-        // ensure pointer events enabled
-        el.style.pointerEvents = 'auto';
-      }
-    });
-    return svgEl;
-
-  } catch(err){
-    console.error(err);
-    document.getElementById('svgContainer').innerHTML = '<div style="color:red;">Unable to load SVG: '+esc(err.message)+'</div>';
-  }
-}
-
-
-/* Wire up click listeners to SVG shapes that match any svg_id from the Zones sheet */
-function wireSvgClicks(svgEl){
-  if(!svgEl) return;
-  // find all elements with id that matches keys in zonesMeta
-  const keys = Object.keys(zonesMeta);
-  if(keys.length === 0){
-    // If no zonesMeta (maybe API not deployed) still attach clicks to elements that look like "zone-*" ids
-    svgEl.querySelectorAll('[id]').forEach(el=>{
-      if(el.id && el.id.trim()){
-        el.addEventListener('click', ()=> handleZoneClick(el.id));
-        el.style.cursor = 'pointer';
-      }
-    });
-    return;
-  }
-/* Robust click handler: find the topmost zone element under the cursor */
-function attachRobustSvgClickHandler(svgEl){
-  if(!svgEl) return;
-  svgEl.addEventListener('click', function(e){
-    // elementsFromPoint returns the stack under the cursor
-    const px = e.clientX, py = e.clientY;
-    const stack = (document.elementsFromPoint) ? document.elementsFromPoint(px, py) : [document.elementFromPoint(px, py)];
-    // find first element whose id matches a zone id from the sheet (commonly 'zone-...')
-    const zoneEl = stack.find(el => el && el.id && (/^zone[-_]?/i.test(el.id) || (zonesMeta && zonesMeta[el.id])));
-    if(zoneEl){
-      const svgId = zoneEl.id;
-      // call existing handlers (adapt to your code names)
-      if(typeof handleZoneClickRobust === 'function'){
-        handleZoneClickRobust(svgId);
-      } else if(typeof handleZoneClick === 'function'){
-        handleZoneClick(svgId);
-      } else {
-        // fallback: set currentZone and refresh
-        currentZone = { svg_id: svgId, zone_id: svgId.replace(/^zone[-_]/i, ''), zone_name: svgId.replace(/[_-]/g,' ') };
-        document.getElementById('zoneTitle').textContent = currentZone.zone_name;
-        refreshJobsFromAPI().then(()=>renderJobList());
-      }
-    } else {
-      // debug info — shows first few elements under cursor
-      console.log('Clicked stack (no zone found):', stack.slice(0,8).map(x => ({id: x && x.id, tag: x && x.tagName})));
-    }
-  }, false);
-}
-
-/* call it after SVG is inlined */
-const svgRoot = document.querySelector('#svgContainer svg');
-if(svgRoot) attachRobustSvgClickHandler(svgRoot);
-
-  // Attach only to elements with id present in zonesMeta
-  keys.forEach(svgId=>{
-    const el = svgEl.querySelector('#' + CSS.escape(svgId));
-    if(el){
-      el.addEventListener('click', ()=> handleZoneClick(svgId, true));
-      el.style.cursor = 'pointer';
-    } else {
-      // fallback: try common prefix differences, e.g., zone-north vs north
-      const alt = svgId.replace(/^zone[-_]/,'');
-      const altEl = svgEl.querySelector('#' + CSS.escape(alt));
-      if(altEl){
-        altEl.addEventListener('click', ()=> handleZoneClick(alt, true));
-        altEl.style.cursor = 'pointer';
-      }
-    }
-  });
-}
-
-/* When a zone is clicked */
-function handleZoneClick(svgId, usedMapping=false){
-  // clear previously selected
-  document.querySelectorAll('.zone-selected').forEach(el=>el.classList.remove('zone-selected'));
-  // find element by id and mark selected
-  const svgContainer = document.getElementById('svgContainer');
-  const el = svgContainer.querySelector('#' + CSS.escape(svgId));
-  if(el) el.classList.add('zone-selected');
-
-  // derive zone_id and zone_name
-  let zoneMeta = zonesMeta[svgId];
-  if(!zoneMeta){
-    // try common fallback: if svgId starts with 'zone-' strip it
-    let fallback = svgId;
-    if(svgId.startsWith('zone-')) fallback = svgId.replace('zone-','');
-    zoneMeta = { svg_id: svgId, zone_id: fallback, zone_name: fallback.replace(/[_-]/g,' ') };
-  }
-  currentZone = zoneMeta;
-  document.getElementById('zoneTitle').textContent = zoneMeta.zone_name || zoneMeta.zone_id || svgId;
-  renderJobList();
-}
-
-/* Apply filters from UI and render job cards for current zone */
-function renderJobList(){
-  const container = document.getElementById('jobList');
-  container.innerHTML = '';
-  if(!currentZone){
-    container.innerHTML = '<p id="jobsEmpty">No area selected.</p>';
-    return;
-  }
-  const team = document.getElementById('teamFilter').value;
-  const priority = document.getElementById('priorityFilter').value;
-  const search = (document.getElementById('searchText').value || '').trim().toLowerCase();
-
-  // Filter jobs: by zone_id (exact), team (if set), priority (if set), and text search
-  const zoneId = currentZone.zone_id;
-  let jobs = allJobsCache.filter(j => String(j.zone_id) === String(zoneId));
-  if(team) jobs = jobs.filter(j => String(j.team).toLowerCase() === team.toLowerCase());
-  if(priority) jobs = jobs.filter(j => String(j.priority).toLowerCase() === priority.toLowerCase());
-  if(search){
-    jobs = jobs.filter(j => (
-      (j.title||'').toLowerCase().includes(search) ||
-      (j.description||'').toLowerCase().includes(search) ||
-      (j.notes||'').toLowerCase().includes(search)
-    ));
-  }
-
-  if(!jobs.length){
-    container.innerHTML = '<p id="jobsEmpty">No jobs found for this area / filters.</p>';
-    return;
-  }
-
-  jobs.forEach(job=>{
-    const div = document.createElement('div');
-    div.className = 'job';
-    const statusClass = (String(job.status).toLowerCase() === 'completed') ? 'status-completed' : 'status-open';
-    div.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h4>${esc(job.title||job.job_id||'Untitled job')}</h4>
-        <div class="status-badge ${statusClass}">${esc(job.status||'open')}</div>
-      </div>
-      <div class="meta small">Team: ${esc(job.team||'')} • Priority: ${esc(job.priority||'')}</div>
-      <p>${esc(job.description||'')}</p>
-      <div>
-        <a class="btn" data-job="${esc(job.job_id)}">Details</a>
-        <a class="btn ghost" data-complete="${esc(job.job_id)}">Mark complete</a>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-async function markComplete(jobId){
-  try {
-    const res = await updateJobViaJsonp(jobId, 'completed');
-    if(!res || !res.ok) { alert('Update failed: ' + (res && res.error)); return false; }
-    await fetchZonesAndJobs();
-    return true;
-  } catch(err){
-    alert('Update failed: ' + err.message);
-    return false;
-  }
-}
-
-  });
-  container.querySelectorAll('[data-job]').forEach(el=>{
-    el.addEventListener('click', ev=>{
-      ev.preventDefault();
-      const jobId = el.getAttribute('data-job');
-      const job = allJobsCache.find(j=>String(j.job_id) === String(jobId));
-      if(!job){ alert('Job not found in cache'); return; }
-      // Simple details modal via alert for prototype (you can replace with a nicer drawer/modal)
-      alert(`Job: ${job.title || job.job_id}\n\nTeam: ${job.team}\nPriority: ${job.priority}\nStatus: ${job.status}\n\nDescription:\n${job.description || ''}\n\nNotes:\n${job.notes || ''}`);
-    });
-  });
-}
-/* JSONP loader for GET data */
-function jsonpFetch(url, callbackName, timeout = 8000){
+/* JSONP helper */
+function jsonpFetch(url, timeout = 10000){
   return new Promise((resolve, reject) => {
-    const cbName = callbackName || ('cb' + Math.random().toString(36).substr(2,9));
-    // define callback
-    window[cbName] = function(data){
-      cleanup();
-      resolve(data);
-    };
-    // insert script
+    const cb = 'cb' + Math.random().toString(36).substr(2,9);
+    window[cb] = function(data){ cleanup(); resolve(data); };
     const s = document.createElement('script');
-    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
-    s.async = true;
-    s.onerror = function(e){ cleanup(); reject(new Error('JSONP script load error')); };
+    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    s.onerror = () => { cleanup(); reject(new Error('JSONP load error')); };
     document.head.appendChild(s);
-    // timeout
     const tid = setTimeout(()=>{ cleanup(); reject(new Error('JSONP timeout')); }, timeout);
-    function cleanup(){
-      clearTimeout(tid);
-      try{ document.head.removeChild(s); }catch(e){}
-      try{ delete window[cbName]; }catch(e){}
-    }
+    function cleanup(){ clearTimeout(tid); try{ document.head.removeChild(s); }catch(e){} try{ delete window[cb]; }catch(e){} }
   });
 }
 
-/* Fetch zones & jobs via JSONP (replaces fetchZonesAndJobs) */
+/* Fetch zones & jobs via JSONP */
 async function fetchZonesAndJobs(){
   try {
-    const resp = await jsonpFetch(API_BASE, 'zcb', 10000);
-    if(!resp || !resp.ok) {
-      console.warn('API returned ok:false or no response', resp);
-      zonesMeta = {};
-      allJobsCache = [];
-      return { zones: [], jobs: [] };
-    }
-    // build zonesMeta map for quick lookup
+    const resp = await jsonpFetch(API_BASE, 10000);
+    if(!resp || !resp.ok) { console.warn('API returned not ok:', resp); zonesMeta={}; allJobsCache=[]; return {zones:[], jobs:[]}; }
     zonesMeta = {};
     (resp.zones || []).forEach(z => { if(z.svg_id) zonesMeta[z.svg_id] = { zone_id: z.zone_id, zone_name: z.zone_name, svg_id: z.svg_id }; });
     allJobsCache = resp.jobs || [];
@@ -371,47 +80,123 @@ async function fetchZonesAndJobs(){
   } catch(err){
     console.error('Failed to fetch zones/jobs:', err);
     zonesMeta = {}; allJobsCache = [];
-    return { zones:[], jobs:[] };
+    return { zones: [], jobs: [] };
   }
 }
 
-/* Update via JSONP GET (unsafe for production but fine for prototype)
-   Usage: updateJobViaJsonp('J001','completed')
-*/
+/* Update job (via JSONP GET update) */
 function updateJobViaJsonp(jobId, status){
   const params = new URLSearchParams();
   params.set('action','update');
   params.set('job_id', jobId);
   params.set('status', status);
-  params.set('token', WRITE_TOKEN); // your token variable in client
+  params.set('token', WRITE_TOKEN);
   const url = API_BASE + '?' + params.toString();
-  // return promise
-  return jsonpFetch(url, 'updatecb', 8000);
+  return jsonpFetch(url, 10000);
 }
 
+/* Inline load SVG file and attach handlers */
+async function loadInlineSVG(url = 'site.svg'){
+  try {
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('Failed to load SVG: ' + r.status);
+    const svgText = await r.text();
+    const container = document.getElementById('svgContainer');
+    container.innerHTML = svgText;
 
+    // runtime fixes: make background non-interactive, ensure zone elements accept events
+    const svgRoot = container.querySelector('svg');
+    if(!svgRoot) throw new Error('SVG element not found after inlining');
+    // set background image pointer-events none if present
+    const bg = svgRoot.querySelector('image');
+    if(bg){ bg.style.pointerEvents = 'none'; bg.setAttribute('pointer-events','none'); }
+    // ensure zone IDs are pointer-active
+    Array.from(svgRoot.querySelectorAll('[id]')).forEach(el => {
+      if(/^zone[-_]?/i.test(el.id)){
+        el.style.pointerEvents = 'auto';
+        el.setAttribute('pointer-events','auto');
+      }
+    });
 
-/* Setup: load SVG, fetch zones & jobs, wire clicks & UI handlers */
-async function start(){
-  const svgEl = await loadInlineSVG('site.svg');
-  await fetchZonesAndJobs();
-  // wire clicks after zonesMeta known and svg present
-  wireSvgClicks(svgEl);
-
-  // UI filter handlers
-  document.getElementById('teamFilter').addEventListener('change', renderJobList);
-  document.getElementById('priorityFilter').addEventListener('change', renderJobList);
-  document.getElementById('searchText').addEventListener('input', () => { setTimeout(renderJobList, 150); });
-
-  // if there are zone elements that match zonesMeta keys, optionally pre-select the first one
-  const keys = Object.keys(zonesMeta);
-  if(keys.length && svgEl.querySelector('#' + CSS.escape(keys[0]))){
-    // visually indicate available areas (already styled) — don't auto-select to avoid surprise
+    attachRobustSvgClickHandler(svgRoot);
+    return svgRoot;
+  } catch(err){
+    console.error(err);
+    document.getElementById('svgContainer').innerHTML = '<div style="color:red; padding:12px;">Unable to load SVG: '+err.message+'</div>';
   }
 }
 
+/* Robust click handler finds topmost zone element under cursor */
+function attachRobustSvgClickHandler(svgEl){
+  if(!svgEl) return;
+  svgEl.addEventListener('click', function(e){
+    const px = e.clientX, py = e.clientY;
+    const stack = (document.elementsFromPoint) ? document.elementsFromPoint(px, py) : [document.elementFromPoint(px, py)];
+    const zoneEl = stack.find(el => el && el.id && ( /^zone[-_]?/i.test(el.id) || (zonesMeta && zonesMeta[el.id]) ));
+    if(zoneEl){
+      const svgId = zoneEl.id;
+      // set UI state
+      currentZone = { svg_id: svgId, zone_id: (zonesMeta[svgId] ? zonesMeta[svgId].zone_id : svgId.replace(/^zone[-_]/i,'')), zone_name: (zonesMeta[svgId] ? zonesMeta[svgId].zone_name : svgId.replace(/[_-]/g,' ')) };
+      document.getElementById('zoneTitle').textContent = currentZone.zone_name;
+      refreshJobsFromAPI().then(()=>renderJobList());
+    } else {
+      console.log('Click stack (no zone):', stack.slice(0,8).map(x => ({id:x && x.id, tag: x && x.tagName})));
+    }
+  }, false);
+}
+
+/* Refresh cache */
+async function refreshJobsFromAPI(){
+  const res = await fetchZonesAndJobs();
+  return res;
+}
+
+/* Render job list for currentZone */
+function renderJobList(){
+  const list = document.getElementById('jobList');
+  list.innerHTML = '';
+  if(!currentZone){ list.innerHTML = '<p>No area selected.</p>'; return; }
+  const team = document.getElementById('teamFilter').value;
+  const jobs = (allJobsCache || []).filter(j => String(j.zone_id) === String(currentZone.zone_id) && (!team || String(j.team) === team));
+  if(jobs.length === 0){ list.innerHTML = '<p>No jobs found.</p>'; return; }
+  jobs.forEach(job => {
+    const div = document.createElement('div'); div.className = 'zone';
+    div.innerHTML = `<h4>${(job.title||job.job_id)}</h4>
+      <div class="small">Team: ${(job.team||'')}</div>
+      <p>${(job.description||'')}</p>
+      <div>
+        <a class="btn" data-job="${job.job_id}">Details</a>
+        <a class="btn ghost" data-complete="${job.job_id}">Mark complete</a>
+      </div>`;
+    list.appendChild(div);
+  });
+  // wire
+  list.querySelectorAll('[data-complete]').forEach(el => el.addEventListener('click', async ev => {
+    ev.preventDefault();
+    const id = el.getAttribute('data-complete');
+    if(!confirm('Mark '+id+' complete?')) return;
+    const res = await updateJobViaJsonp(id, 'completed');
+    if(res && res.ok){ await refreshJobsFromAPI(); renderJobList(); }
+    else alert('Update failed: ' + (res && res.error ? res.error : 'unknown'));
+  }));
+  list.querySelectorAll('[data-job]').forEach(el => el.addEventListener('click', ev => {
+    ev.preventDefault();
+    const id = el.getAttribute('data-job');
+    const job = allJobsCache.find(j => String(j.job_id) === String(id));
+    alert('Job: ' + (job.title||id) + '\n\n' + (job.description||''));
+  }));
+}
+
+/* Start */
+async function start(){
+  await loadInlineSVG('site.svg');
+  await fetchZonesAndJobs();
+}
 start();
+
+/* refresh on team change */
+document.getElementById('teamFilter').addEventListener('change', ()=> renderJobList());
+
 </script>
 </body>
 </html>
-
