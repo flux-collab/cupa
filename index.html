@@ -8,7 +8,7 @@
     body { font-family: Arial, sans-serif; margin:0; }
     #container { display:flex; height:100vh; }
     #mapwrap { flex:1; padding:12px; box-sizing:border-box; overflow:auto; background:#f7f7f7; display:flex; align-items:center; justify-content:center; }
-    #svgContainer { width:100%; max-width:1200px; border:1px solid #ddd; background:#fff; }
+    #svgContainer { width:100%; max-width:1200px; border:1px solid #ddd; background:#fff; position:relative; }
     aside { width:360px; border-left:1px solid #eee; padding:12px; box-sizing:border-box; overflow:auto; }
     .zone { padding:8px; border-bottom:1px solid #eee; }
     .btn { display:inline-block; padding:6px 10px; border-radius:6px; color:#fff; background:#007bff; text-decoration:none; cursor:pointer; }
@@ -20,7 +20,8 @@
   <div id="container">
     <div id="mapwrap">
       <div id="svgContainer">
-        <p style="padding:12px; color:#666;">Loading site image…</p>
+        <!-- The SVG map goes here -->
+        <object id="siteMap" data="site.svg" type="image/svg+xml" style="width:100%; height:auto;"></object>
       </div>
     </div>
 
@@ -43,8 +44,6 @@
       </div>
     </aside>
   </div>
-<!-- Site map container -->
-<object id="siteMap" data="site.svg" type="image/svg+xml" style="width:100%; height:auto;"></object>
 
 <script>
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwXpjpotXDNoGLggWB4FmBe9EW0Z05W1IvoQLnsF7xrRAlvkzP2IJ9dKboBeE1fLYs8Rw/exec";
@@ -66,22 +65,9 @@ async function fetchZonesAndJobs() {
     zones = data.zones || [];
     jobs = data.jobs || [];
     console.log("Loaded zones:", zones.length, "jobs:", jobs.length);
-
-    renderZoneList();
   } catch (err) {
     console.error("Failed to fetch zones/jobs:", err);
   }
-}
-
-function renderZoneList() {
-  const list = document.getElementById("zoneList");
-  list.innerHTML = "";
-  zones.forEach(zone => {
-    const li = document.createElement("li");
-    li.textContent = zone.name;
-    li.onclick = () => selectZone(zone.id);
-    list.appendChild(li);
-  });
 }
 
 function selectZone(zoneId) {
@@ -138,7 +124,21 @@ function markJobComplete(jobId) {
 
 // Start up
 fetchZonesAndJobs();
-</script>
 
+// Attach zone click events after SVG loads
+document.getElementById("siteMap").addEventListener("load", function() {
+  const svgDoc = this.contentDocument;
+  const clickableZones = ["zone-bar", "zone-god", "zone-gthq", "zone-event", "zone-workshop", "zone-bastion"];
+
+  clickableZones.forEach(id => {
+    const el = svgDoc.getElementById(id);
+    if (el) {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", () => selectZone(id));
+    }
+  });
+});
+</script>
 </body>
 </html>
+
