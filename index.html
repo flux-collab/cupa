@@ -214,6 +214,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const obj = document.getElementById("siteMap");
   obj.addEventListener("load", () => {
+    console.log("SVG loaded:", obj.contentDocument);
+console.log("Zones to bind:", zones);
+
     svgDoc = obj.contentDocument;
 
     zones.forEach(zone => {
