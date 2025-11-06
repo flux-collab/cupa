@@ -142,21 +142,32 @@ function markJobComplete(jobId) {
 
 // Initialise SVG and event listeners
 window.addEventListener("DOMContentLoaded", async () => {
-  await fetchZonesAndJobs();
-
   const obj = document.getElementById("siteMap");
-  obj.addEventListener("load", () => {
-    const svgDoc = obj.contentDocument;
-    zones.forEach(zone => {
-      const shape = svgDoc.getElementById(zone.svg_id);
-      if (shape) {
-        shape.style.cursor = "pointer";
-        shape.addEventListener("click", () => selectZone(zone.svg_id));
-      }
-    });
+
+  // Wait for both fetchZonesAndJobs() and SVG load to finish
+  const [_, svgLoaded] = await Promise.all([
+    fetchZonesAndJobs(),
+    new Promise(resolve => {
+      if (obj.contentDocument) return resolve();
+      obj.addEventListener("load", resolve);
+    })
+  ]);
+
+  const svgDoc = obj.contentDocument;
+  console.log("SVG and data loaded; attaching click handlers...");
+
+  zones.forEach(zone => {
+    const shape = svgDoc.getElementById(zone.svg_id);
+    if (shape) {
+      shape.style.cursor = "pointer";
+      shape.addEventListener("click", () => selectZone(zone.svg_id));
+      console.log("Attached click for", zone.svg_id);
+    } else {
+      console.warn("SVG shape not found for", zone.svg_id);
+    }
   });
 
-  // Listen for team filter changes
+  // Team filter listener
   document.getElementById("teamFilter").addEventListener("change", renderJobList);
 });
 </script>
