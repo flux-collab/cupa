@@ -52,6 +52,7 @@ const TOKEN = "rtyaddsv42r-skdjfh0";
 let zones = [];
 let jobs = [];
 let currentZoneId = null;
+let svgDoc = null;
 
 // Fetch data from Google Apps Script
 async function fetchZonesAndJobs() {
@@ -75,101 +76,37 @@ async function fetchZonesAndJobs() {
 // Select a zone when user clicks an area on the SVG
 function selectZone(zoneId) {
   console.log("Selected zone:", zoneId);
-  currentZoneId = zoneId.replace(/^zone-/, ""); // normalise ID
+  currentZoneId = zoneId.replace(/^zone-/, "");
   renderJobList();
+}
+
+// Colour the zones based on job status
+function updateZoneColours() {
+  if (!svgDoc) return;
+
+  zones.forEach(zone => {
+    const zoneJobs = jobs.filter(j => j.zone_id === zone.svg_id);
+    const shape = svgDoc.getElementById(zone.svg_id);
+    if (!shape) return;
+
+    if (zoneJobs.length === 0) {
+      shape.style.fill = "#ddd"; // no jobs
+      return;
+    }
+
+    const hasActive = zoneJobs.some(j => j.status !== "completed");
+    const hasPending = zoneJobs.some(j => j.status === "pending");
+
+    if (hasActive) shape.style.fill = "#f88"; // red
+    else if (hasPending) shape.style.fill = "#ff8"; // yellow
+    else shape.style.fill = "#8f8"; // green
+  });
 }
 
 // Render job list (filtered by team + zone)
 function renderJobList() {
-  const list = document.getElementById("jobList");
-  list.innerHTML = "";
+  const list = document.g
 
-  if (!currentZoneId) {
-    list.innerHTML = "<p>No area selected.</p>";
-    return;
-  }
-
-  const selectedTeam = document.getElementById("teamFilter").value;
-  const zoneJobs = jobs.filter(j =>
-    j.zone_id === currentZoneId &&
-    j.status !== "completed" &&
-    (!selectedTeam || j.team === selectedTeam)
-  );
-
-  if (zoneJobs.length === 0) {
-    list.innerHTML = "<li>No active jobs for this zone</li>";
-    return;
-  }
-
-  zoneJobs.forEach(job => {
-    const li = document.createElement("li");
-    li.setAttribute("data-job-id", job.job_id);
-    li.textContent = `${job.job_id} – ${job.title || job.description || "Unnamed job"}`;
-
-    const btn = document.createElement("button");
-    btn.textContent = "Mark complete";
-    btn.onclick = () => markJobComplete(job.job_id);
-    btn.style.marginLeft = "10px";
-
-    li.appendChild(btn);
-    list.appendChild(li);
-  });
-}
-
-// Mark a job complete
-function markJobComplete(jobId) {
-  console.log("Completing job:", jobId);
-  fetch(`${WEB_APP_URL}?token=${TOKEN}&job_id=${jobId}&complete=true`)
-    .then(r => r.json())
-    .then(data => {
-      console.log("Job marked complete:", data);
-
-      // Remove from local jobs list
-      jobs = jobs.filter(j => j.job_id !== jobId);
-
-      // Refresh current zone list
-      renderJobList();
-
-      // Confirmation message
-      const confirmMsg = document.createElement("div");
-      confirmMsg.textContent = `✅ Job ${jobId} marked complete`;
-      confirmMsg.className = "text-green-700 text-sm mt-2 fade-out";
-      document.querySelector("#jobList").appendChild(confirmMsg);
-      setTimeout(() => confirmMsg.remove(), 2000);
-    })
-    .catch(err => console.error("Error completing job:", err));
-}
-
-// Initialise SVG and event listeners
-window.addEventListener("DOMContentLoaded", async () => {
-  const obj = document.getElementById("siteMap");
-
-  // Wait for both fetchZonesAndJobs() and SVG load to finish
-  const [_, svgLoaded] = await Promise.all([
-    fetchZonesAndJobs(),
-    new Promise(resolve => {
-      if (obj.contentDocument) return resolve();
-      obj.addEventListener("load", resolve);
-    })
-  ]);
-
-  const svgDoc = obj.contentDocument;
-  console.log("SVG and data loaded; attaching click handlers...");
-
-  zones.forEach(zone => {
-    const shape = svgDoc.getElementById(zone.svg_id);
-    if (shape) {
-      shape.style.cursor = "pointer";
-      shape.addEventListener("click", () => selectZone(zone.svg_id));
-      console.log("Attached click for", zone.svg_id);
-    } else {
-      console.warn("SVG shape not found for", zone.svg_id);
-    }
-  });
-
-  // Team filter listener
-  document.getElementById("teamFilter").addEventListener("change", renderJobList);
-});
 </script>
 
 </body>
