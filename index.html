@@ -51,7 +51,9 @@ const TOKEN = "rtyaddsv42r-skdjfh0";
 
 let zones = [];
 let jobs = [];
+let currentZoneId = null;
 
+// Fetch data from Google Apps Script
 async function fetchZonesAndJobs() {
   console.log("Fetching zones and jobs...");
   try {
@@ -70,12 +72,29 @@ async function fetchZonesAndJobs() {
   }
 }
 
+// Select a zone when user clicks an area on the SVG
 function selectZone(zoneId) {
   console.log("Selected zone:", zoneId);
-  const cleanZoneId = zoneId.replace(/^zone-/, ""); // remove 'zone-' prefix
-  const zoneJobs = jobs.filter(j => j.zone_id === cleanZoneId && j.status !== "completed");
+  currentZoneId = zoneId.replace(/^zone-/, ""); // normalise ID
+  renderJobList();
+}
+
+// Render job list (filtered by team + zone)
+function renderJobList() {
   const list = document.getElementById("jobList");
   list.innerHTML = "";
+
+  if (!currentZoneId) {
+    list.innerHTML = "<p>No area selected.</p>";
+    return;
+  }
+
+  const selectedTeam = document.getElementById("teamFilter").value;
+  const zoneJobs = jobs.filter(j =>
+    j.zone_id === currentZoneId &&
+    j.status !== "completed" &&
+    (!selectedTeam || j.team === selectedTeam)
+  );
 
   if (zoneJobs.length === 0) {
     list.innerHTML = "<li>No active jobs for this zone</li>";
@@ -85,7 +104,7 @@ function selectZone(zoneId) {
   zoneJobs.forEach(job => {
     const li = document.createElement("li");
     li.setAttribute("data-job-id", job.job_id);
-    li.textContent = `${job.job_id} – ${job.description || "Unnamed job"}`;
+    li.textContent = `${job.job_id} – ${job.title || job.description || "Unnamed job"}`;
 
     const btn = document.createElement("button");
     btn.textContent = "Mark complete";
@@ -97,6 +116,7 @@ function selectZone(zoneId) {
   });
 }
 
+// Mark a job complete
 function markJobComplete(jobId) {
   console.log("Completing job:", jobId);
   fetch(`${WEB_APP_URL}?token=${TOKEN}&job_id=${jobId}&complete=true`)
@@ -104,14 +124,11 @@ function markJobComplete(jobId) {
     .then(data => {
       console.log("Job marked complete:", data);
 
-      // Remove from DOM
-      const jobElement = document.querySelector(`[data-job-id="${jobId}"]`);
-      if (jobElement) {
-        jobElement.remove();
-      }
-
-      // Update local array
+      // Remove from local jobs list
       jobs = jobs.filter(j => j.job_id !== jobId);
+
+      // Refresh current zone list
+      renderJobList();
 
       // Confirmation message
       const confirmMsg = document.createElement("div");
@@ -123,23 +140,27 @@ function markJobComplete(jobId) {
     .catch(err => console.error("Error completing job:", err));
 }
 
-// Start up
-fetchZonesAndJobs();
+// Initialise SVG and event listeners
+window.addEventListener("DOMContentLoaded", async () => {
+  await fetchZonesAndJobs();
 
-// Attach zone click events after SVG loads
-document.getElementById("siteMap").addEventListener("load", function() {
-  const svgDoc = this.contentDocument;
-  const clickableZones = ["zone-bar", "zone-god", "zone-gthq", "zone-event", "zone-workshop", "zone-bastion"];
-
-  clickableZones.forEach(id => {
-    const el = svgDoc.getElementById(id);
-    if (el) {
-      el.style.cursor = "pointer";
-      el.addEventListener("click", () => selectZone(id));
-    }
+  const obj = document.getElementById("siteMap");
+  obj.addEventListener("load", () => {
+    const svgDoc = obj.contentDocument;
+    zones.forEach(zone => {
+      const shape = svgDoc.getElementById(zone.svg_id);
+      if (shape) {
+        shape.style.cursor = "pointer";
+        shape.addEventListener("click", () => selectZone(zone.svg_id));
+      }
+    });
   });
+
+  // Listen for team filter changes
+  document.getElementById("teamFilter").addEventListener("change", renderJobList);
 });
 </script>
+
 </body>
 </html>
 
