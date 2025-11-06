@@ -72,7 +72,8 @@ async function fetchZonesAndJobs() {
 
 function selectZone(zoneId) {
   console.log("Selected zone:", zoneId);
-  const zoneJobs = jobs.filter(j => j.zone_id === zoneId && j.status !== "complete");
+  const cleanZoneId = zoneId.replace(/^zone-/, ""); // remove 'zone-' prefix
+  const zoneJobs = jobs.filter(j => j.zone_id === cleanZoneId && j.status !== "completed");
   const list = document.getElementById("jobList");
   list.innerHTML = "";
 
