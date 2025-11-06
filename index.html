@@ -83,7 +83,6 @@ function selectZone(zoneId) {
 // Colour the zones based on job status
 function updateZoneColours() {
   if (!svgDoc) return;
-
   zones.forEach(zone => {
     const zoneJobs = jobs.filter(j => j.zone_id === zone.svg_id);
     const shape = svgDoc.getElementById(zone.svg_id);
@@ -95,20 +94,143 @@ function updateZoneColours() {
     }
 
     const hasActive = zoneJobs.some(j => j.status !== "completed");
-    const hasPending = zoneJobs.some(j => j.status === "pending");
-
     if (hasActive) shape.style.fill = "#f88"; // red
-    else if (hasPending) shape.style.fill = "#ff8"; // yellow
     else shape.style.fill = "#8f8"; // green
   });
 }
 
 // Render job list (filtered by team + zone)
 function renderJobList() {
-  const list = document.g
+  const list = document.getElementById("jobList");
+  list.innerHTML = "";
 
+  if (!currentZoneId) {
+    list.innerHTML = "<p>No area selected.</p>";
+    return;
+  }
+
+  const selectedTeam = document.getElementById("teamFilter").value;
+  const zoneJobs = jobs.filter(j =>
+    j.zone_id === currentZoneId &&
+    j.status !== "completed" &&
+    (!selectedTeam || j.team === selectedTeam)
+  );
+
+  if (zoneJobs.length === 0) {
+    list.innerHTML = "<p>No active jobs for this zone</p>";
+    return;
+  }
+
+  zoneJobs.forEach(job => {
+    const jobDiv = document.createElement("div");
+    jobDiv.className = "jobItem";
+    jobDiv.style.marginBottom = "10px";
+
+    // Job title (clickable to toggle details)
+    const title = document.createElement("div");
+    title.textContent = job.title || `Job ${job.job_id}`;
+    title.style.cursor = "pointer";
+    title.style.fontWeight = "bold";
+    title.addEventListener("click", () => toggleJobDetails(job.job_id));
+
+    // Mark complete button
+    const btn = document.createElement("button");
+    btn.textContent = "Mark complete";
+    btn.onclick = e => {
+      e.stopPropagation();
+      markJobComplete(job.job_id);
+    };
+    btn.style.marginLeft = "8px";
+
+    title.appendChild(btn);
+    jobDiv.appendChild(title);
+
+    // Hidden details section
+    const details = document.createElement("div");
+    details.id = `details-${job.job_id}`;
+    details.style.display = "none";
+    details.style.marginLeft = "10px";
+    details.style.fontSize = "0.9em";
+    details.style.color = "#333";
+
+    if (job.description) {
+      const desc = document.createElement("p");
+      desc.textContent = job.description;
+      details.appendChild(desc);
+    }
+
+    if (job.photo_url) {
+      const img = document.createElement("img");
+      img.src = job.photo_url;
+      img.alt = "Job photo";
+      img.style.maxWidth = "100%";
+      img.style.borderRadius = "6px";
+      img.style.marginTop = "4px";
+      details.appendChild(img);
+    }
+
+    jobDiv.appendChild(details);
+    list.appendChild(jobDiv);
+  });
+}
+
+// Toggle job details visibility
+function toggleJobDetails(jobId) {
+  const details = document.getElementById(`details-${jobId}`);
+  if (details) {
+    details.style.display = details.style.display === "none" ? "block" : "none";
+  }
+}
+
+// Mark a job complete
+function markJobComplete(jobId) {
+  console.log("Completing job:", jobId);
+  fetch(`${WEB_APP_URL}?token=${TOKEN}&job_id=${jobId}&complete=true`)
+    .then(r => r.json())
+    .then(data => {
+      console.log("Job marked complete:", data);
+
+      // Update job status
+      const job = jobs.find(j => j.job_id === jobId);
+      if (job) job.status = "completed";
+
+      // Refresh UI
+      renderJobList();
+      updateZoneColours();
+
+      // Confirmation message
+      const confirmMsg = document.createElement("div");
+      confirmMsg.textContent = `✅ Job ${jobId} marked complete`;
+      confirmMsg.className = "text-green-700 text-sm mt-2 fade-out";
+      document.querySelector("#jobList").appendChild(confirmMsg);
+      setTimeout(() => confirmMsg.remove(), 2000);
+    })
+    .catch(err => console.error("Error completing job:", err));
+}
+
+// Initialise SVG and event listeners
+window.addEventListener("DOMContentLoaded", async () => {
+  await fetchZonesAndJobs();
+
+  const obj = document.getElementById("siteMap");
+  obj.addEventListener("load", () => {
+    svgDoc = obj.contentDocument;
+
+    zones.forEach(zone => {
+      const shape = svgDoc.getElementById(zone.svg_id);
+      if (shape) {
+        shape.style.cursor = "pointer";
+        shape.addEventListener("click", () => selectZone(zone.svg_id));
+      }
+    });
+
+    updateZoneColours();
+  });
+
+  // Listen for team filter changes
+  document.getElementById("teamFilter").addEventListener("change", renderJobList);
+});
 </script>
-
 </body>
 </html>
 
