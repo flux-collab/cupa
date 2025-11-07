@@ -52,20 +52,22 @@ const SHEET_URL =
 let zones = [];
 let jobs = [];
 let currentZoneId = null;
-
 // Fetch zones and jobs
 async function fetchZonesAndJobs() {
   console.log("Fetching zones and jobs...");
   try {
+    // ✅ Note the `callback=cb` instead of `jsonp=callback`
     const response = await fetch(`${SHEET_URL}?callback=cb`);
     const text = await response.text();
-    const jsonText = text.replace(/^cb\(|\);$/g, "");
+
+    // ✅ Parse JSONP properly
+    const jsonText = text.replace(/^cb\(|\);?$/g, "");
     const data = JSON.parse(jsonText);
 
-    zones = data.zones.filter(z => z.svg_id);
+    zones = (data.zones || []).filter(z => z.svg_id);
     jobs = data.jobs || [];
-    console.log(`Loaded zones: ${zones.length}, jobs: ${jobs.length}`);
 
+    console.log(`Loaded zones: ${zones.length}, jobs: ${jobs.length}`);
     setupZoneInteractions();
   } catch (err) {
     console.error("Failed to fetch zones/jobs:", err);
