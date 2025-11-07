@@ -47,7 +47,7 @@
 
 <script>
 const SHEET_URL =
-  "https://script.google.com/macros/s/AKfycbwCAlLUifVXcRbq1zWUXg3Ykq6geNXenCiL2Fn4CwG2cF77Sb6HhEl0aSwBU2LRTqU1HA/exec"; // <-- your Apps Script URL
+  "https://script.google.com/macros/s/AKfycby-HJoS8SXC6q0qGuhAK0cs3KvImbuWC94MlAPt8RvfwRsZ7PWqIsJ3DxheiuVUuSECjQ/exec"; // <-- your Apps Script URL
 
 let zones = [];
 let jobs = [];
@@ -118,7 +118,9 @@ function selectZone(zoneId) {
     jobDiv.className = "border rounded p-2 mb-2 bg-white shadow";
 
     const title = document.createElement("div");
-    title.textContent = job.job_title || "Untitled job";
+    title.textContent = (job.title && job.title.trim() !== "") 
+  ? job.title 
+  : `Job ${job.job_id}`;
     title.className = "font-semibold cursor-pointer";
 
     const completeBtn = document.createElement("button");
@@ -142,14 +144,15 @@ function selectZone(zoneId) {
       const details = document.createElement("div");
       details.className = "job-details mt-2 text-sm text-gray-700";
 
-      details.innerHTML = `
-        <p>${job.job_description || "No description available."}</p>
-        ${
-          job.photo_url
-            ? `<img src="${job.photo_url}" class="mt-2 rounded shadow-md" style="max-height:150px;">`
-            : ""
-        }
-      `;
+     details.innerHTML = `
+  <p>${(job.description && job.description.trim() !== "") ? job.description : "No description available."}</p>
+  ${
+    job.photo_url
+      ? `<img src="${job.photo_url}" class="mt-2 rounded shadow-md" style="max-height:150px;">`
+      : ""
+  }
+`;
+
       jobDiv.appendChild(details);
     });
 
