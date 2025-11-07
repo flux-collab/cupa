@@ -46,7 +46,7 @@
   </div>
 
 <script>
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwXpjpotXDNoGLggWB4FmBe9EW0Z05W1IvoQLnsF7xrRAlvkzP2IJ9dKboBeE1fLYs8Rw/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz4LoJ_SS2MOWFzBw1xkNH6LYrDWLb-TVjdlmb5tCxR5SOy5L-onfISwmJtrSQFYM4_jw/exec";
 const TOKEN = "rtyaddsv42r-skdjfh0";
 
 let zones = [];
@@ -66,6 +66,7 @@ async function fetchZonesAndJobs() {
     const data = JSON.parse(jsonText);
 
     zones = data.zones || [];
+    zones = zones.filter(z => z.svg_id && z.svg_id.trim() !== "");
     jobs = data.jobs || [];
     console.log("Loaded zones:", zones.length, "jobs:", jobs.length);
   } catch (err) {
