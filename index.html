@@ -162,23 +162,38 @@ function selectZone(zoneId) {
   });
 }
 
-// Mark a job as complete
 function completeJob(jobId) {
-fetch(`${SHEET_URL}?action=update&job_id=${jobId}&status=completed&token=rtyaddsv42r-skdjfh0&callback=cb`)
-    .then(r => r.json())
-    .then(data => {
-      console.log("Job marked complete:", data);
-      jobs = jobs.filter(j => j.job_id !== jobId); // remove job
-      if (currentZoneId) selectZone(currentZoneId); // refresh zone list
+  const url = `${SHEET_URL}?action=update&job_id=${jobId}&status=completed&token=rtyaddsv42r-skdjfh0&callback=cb`;
 
-      const confirmMsg = document.createElement("div");
-      confirmMsg.textContent = `✅ Job ${jobId} marked complete`;
-      confirmMsg.className = "text-green-700 text-sm mt-2 fade-out";
-      document.querySelector("#jobList").appendChild(confirmMsg);
-      setTimeout(() => confirmMsg.remove(), 2000);
+  fetch(url)
+    .then(r => r.text())
+    .then(text => {
+      // Strip cb(...) wrapper
+      const jsonText = text.replace(/^cb\(|\);?$/g, "");
+      const data = JSON.parse(jsonText);
+
+      console.log("Job marked complete:", data);
+
+      if (data.ok) {
+        // Remove job from local list
+        jobs = jobs.filter(j => j.job_id !== jobId);
+
+        // Refresh UI
+        if (currentZoneId) selectZone(currentZoneId);
+
+        // Confirmation message
+        const confirmMsg = document.createElement("div");
+        confirmMsg.textContent = `✅ Job ${jobId} marked complete`;
+        confirmMsg.className = "text-green-700 text-sm mt-2 fade-out";
+        document.querySelector("#jobList").appendChild(confirmMsg);
+        setTimeout(() => confirmMsg.remove(), 2000);
+      } else {
+        console.error("Complete returned error:", data.error);
+      }
     })
     .catch(err => console.error("Error completing job:", err));
 }
+
 
 // Reload zones when SVG is ready
 document.getElementById("siteMap").addEventListener("load", () => {
