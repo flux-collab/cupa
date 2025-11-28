@@ -164,7 +164,7 @@ function selectZone(zoneId) {
 
 // Mark a job as complete
 function completeJob(jobId) {
-  fetch(`${SHEET_URL}?complete=${jobId}`)
+fetch(`${SHEET_URL}?action=update&job_id=${jobId}&status=completed&token=rtyaddsv42r-skdjfh0&callback=cb`)
     .then(r => r.json())
     .then(data => {
       console.log("Job marked complete:", data);
