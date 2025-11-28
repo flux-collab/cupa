@@ -43,6 +43,8 @@
 
     <aside>
       <h3 id="zoneTitle">Select an area</h3>
+      <p id="userNameDisplay" style="font-size:14px; color:#555; margin-top:-8px;"></p>
+
       <div>
         <label>Team:
           <select id="teamFilter">
@@ -68,6 +70,20 @@ const SHEET_URL =
 let zones = [];
 let jobs = [];
 let currentZoneId = null;
+  // --- User Identification ---
+let currentUser = localStorage.getItem("larpUserName");
+
+if (!currentUser) {
+  currentUser = prompt("Please enter your name:");
+  if (!currentUser || currentUser.trim() === "") {
+    currentUser = "Unknown"; // fallback
+  }
+  localStorage.setItem("larpUserName", currentUser);
+}
+
+// Display name in sidebar
+document.getElementById("userNameDisplay").textContent = `Logged in as: ${currentUser}`;
+
 // Fetch zones and jobs
 async function fetchZonesAndJobs() {
   console.log("Fetching zones and jobs...");
@@ -188,7 +204,7 @@ function completeJob(jobId) {
   const originalHTML = button.innerHTML;
   button.innerHTML = `<span class="loading-spinner"></span> Updating…`;
 
-  const url = `${SHEET_URL}?action=update&job_id=${jobId}&status=completed&token=rtyaddsv42r-skdjfh0&callback=cb`;
+  const url = `${SHEET_URL}?action=update&job_id=${jobId}&status=completed&completed_by=${encodeURIComponent(currentUser)}&user=${encodeURIComponent(currentUser)}&token=rtyaddsv42r-skdjfh0&callback=cb`;
 
   fetch(url)
     .then(r => r.text())
